@@ -39,20 +39,56 @@ export class HelloLambdaStack extends cdk.Stack {
 
     const ProductsListLambdaIntegration = new apigateway.LambdaIntegration(
       getProductsListLambdaFunction,
-      {}
+      {
+        integrationResponses: [
+          {
+            statusCode: "200",
+          },
+        ],
+        proxy: false,
+      }
     );
 
     const ProductsByIdLambdaIntegration = new apigateway.LambdaIntegration(
       getProductsByIdLambdaFunction,
-      {}
+      {
+        integrationResponses: [
+          {
+            statusCode: "200",
+          },
+        ],
+        requestTemplates: {
+          "application/json": JSON.stringify({
+            pathParameters: {
+              productId: "$input.params('productId')",
+            },
+          }),
+        },
+        proxy: false,
+      }
     );
 
     // Create a resource /hello and GET request under it
     const ProductsListResource = api.root.addResource("products");
     // On this resource attach a GET method which pass reuest to our Lambda function
-    ProductsListResource.addMethod("GET", ProductsListLambdaIntegration);
+    ProductsListResource.addMethod("GET", ProductsListLambdaIntegration, {
+      methodResponses: [{ statusCode: "200" }],
+    });
 
-    const helloUserResource = ProductsListResource.addResource("{productId}");
-    helloUserResource.addMethod("GET", ProductsByIdLambdaIntegration);
+    ProductsListResource.addCorsPreflight({
+      allowOrigins: ["https://d1zh618m90woj0.cloudfront.net"],
+      allowMethods: ["GET"],
+    });
+
+    const ProductsByIdResource =
+      ProductsListResource.addResource("{productId}");
+    ProductsByIdResource.addMethod("GET", ProductsByIdLambdaIntegration, {
+      methodResponses: [{ statusCode: "200" }],
+    });
+
+    ProductsByIdResource.addCorsPreflight({
+      allowOrigins: ["https://d1zh618m90woj0.cloudfront.net"],
+      allowMethods: ["GET"],
+    });
   }
 }
