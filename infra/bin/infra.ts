@@ -3,6 +3,8 @@ import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
 import { DeployWebAppStack } from "../lib/deploy-web-app-stack";
 import { HelloLambdaStack } from "../lib/lambda/lambda-stack";
+import { TodoStack } from "../lib/todo/TodoStack";
+import { ProductServiceStack } from "../lib/product-service";
 
 const app = new cdk.App();
 new DeployWebAppStack(app, "DeployWebAppStack", {
@@ -18,3 +20,7 @@ new DeployWebAppStack(app, "DeployWebAppStack", {
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
 });
 new HelloLambdaStack(app, "HelloLambdaStack", {});
+
+new TodoStack(app, "TodoStack");
+
+new ProductServiceStack(app, "ProductServiceStack", {});
