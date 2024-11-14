@@ -2,9 +2,13 @@ import { S3Event } from "aws-lambda";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Readable } from "stream";
 import { parse } from "csv-parse";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 
 export async function handler(event: S3Event) {
   const bucketName = process.env.BUCKET_NAME;
+  const queueUrl = process.env.SQS_QUEUE_URL;
+
+  const sqsClient = new SQSClient({ region: "us-east-1" });
 
   if (!bucketName) {
     console.error("Bucket name is missing from environment variables.");
@@ -30,8 +34,13 @@ export async function handler(event: S3Event) {
       await new Promise<void>((resolve, reject) => {
         s3Stream
           .pipe(parse({ delimiter: "|" }))
-          .on("data", (data: Record<string, string>) => {
+          .on("data", async (data: Record<string, string>) => {
             console.log("Record:", data);
+            const sendMessageCommand = new SendMessageCommand({
+              QueueUrl: queueUrl,
+              MessageBody: JSON.stringify(data),
+            });
+            await sqsClient.send(sendMessageCommand);
           })
           .on("end", () => {
             console.log("File processing complete.");
