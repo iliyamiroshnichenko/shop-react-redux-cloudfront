@@ -13,6 +13,10 @@ export class ImportServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const githubLogin = process.env.GITHUB_LOGIN;
+    const testPass = process.env.TEST_PASS;
+    const credentials = `${githubLogin}=${testPass}`;
+
     const productsFileBucket = new s3.Bucket(this, "products-file-bucket", {
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -54,6 +58,20 @@ export class ImportServiceStack extends cdk.Stack {
       }
     );
 
+    const basicAuthorizerLambdaFunction = new NodejsFunction(
+      this,
+      "basic-authorizer-lambda-function",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        memorySize: 1024,
+        timeout: cdk.Duration.seconds(5),
+        environment: {
+          CREDENTIALS: credentials,
+        },
+        entry: path.join(__dirname, "../lambda/basic-authorizer-lambda.ts"),
+      }
+    );
+
     productsFileBucket.grantRead(importProductsFileLambdaFunction);
     productsFileBucket.grantRead(importFileParserLambdaFunction);
 
@@ -86,8 +104,19 @@ export class ImportServiceStack extends cdk.Stack {
 
     const importsResource = api.root.addResource("import");
 
+    const lambdaAuthorizer = new apigateway.TokenAuthorizer(
+      this,
+      "LambdaAuthorizer",
+      {
+        handler: basicAuthorizerLambdaFunction,
+        identitySource: "method.request.header.Authorization",
+      }
+    );
+
     importsResource.addMethod("GET", importProductsFileLambdaIntegration, {
       methodResponses: [{ statusCode: "200" }],
+      authorizer: lambdaAuthorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
     });
 
     importsResource.addCorsPreflight({
